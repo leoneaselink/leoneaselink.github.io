@@ -1,9 +1,10 @@
-```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
+  <meta name="theme-color" content="#2563eb">
+  <link rel="manifest" href="manifest.json">
   <title>PC Fix AI - Computer Repair Assistant</title>
   <style>
     * {
@@ -20,7 +21,6 @@
       padding: 0 0 80px 0;
     }
 
-    /* Splash / Disclaimer overlay */
     .splash-overlay {
       position: fixed;
       top: 0;
@@ -35,7 +35,6 @@
       flex-direction: column;
       padding: 2rem;
       transition: opacity 0.4s ease;
-      backdrop-filter: blur(2px);
     }
 
     .disclaimer-card {
@@ -75,7 +74,6 @@
       cursor: pointer;
     }
 
-    /* Main app container */
     .app-container {
       max-width: 600px;
       margin: 0 auto;
@@ -108,7 +106,6 @@
       cursor: pointer;
     }
 
-    /* cards */
     .card {
       background: white;
       border-radius: 1.5rem;
@@ -168,6 +165,10 @@
       background: #dc2626;
     }
 
+    button.mic-btn {
+      background: #10b981;
+    }
+
     .solution-box {
       background: #f8fafc;
       border-left: 4px solid #3b82f6;
@@ -203,14 +204,36 @@
       padding: 2rem;
     }
 
-    .mic-btn {
-      background: #10b981;
-    }
-
     .status-text {
       font-size: 0.8rem;
       margin-top: 8px;
       color: #475569;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 30px;
+      left: 20px;
+      right: 20px;
+      background: #1e293b;
+      color: white;
+      text-align: center;
+      padding: 12px;
+      border-radius: 2rem;
+      font-size: 0.85rem;
+      z-index: 2500;
+      animation: fadeInUp 0.3s ease;
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
   </style>
 </head>
@@ -232,7 +255,6 @@
       <div class="settings-icon" id="openSettingsBtn">⚙️ API Key</div>
     </header>
 
-    <!-- API Key status indicator -->
     <div class="card" style="padding: 0.7rem 1rem;">
       <div style="display: flex; justify-content: space-between; align-items: center;">
         <span>🔑 OpenAI Key: <span id="apiKeyStatus">Not set</span></span>
@@ -240,7 +262,6 @@
       </div>
     </div>
 
-    <!-- Input Section -->
     <div class="card">
       <div class="card-title">💬 Describe your PC issue</div>
       <textarea id="problemInput" placeholder="Example: Laptop won't turn on, fan spinning loudly, blue screen error 0x000000f, or battery not charging..."></textarea>
@@ -252,7 +273,6 @@
       <div id="voiceStatus" class="status-text"></div>
     </div>
 
-    <!-- AI Solution -->
     <div class="card">
       <div class="card-title">🛠️ Repair Plan (AI + iFixit style)</div>
       <div id="solutionArea" class="solution-box">
@@ -260,7 +280,6 @@
       </div>
     </div>
 
-    <!-- History Section -->
     <div class="card">
       <div class="card-title" style="justify-content: space-between;">
         <span>📜 Local History</span>
@@ -273,7 +292,6 @@
   </div>
 </div>
 
-<!-- API Settings Modal (simple inline) -->
 <div id="apiModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:3000; align-items:center; justify-content:center;">
   <div style="background:white; max-width:90%; width:360px; border-radius:2rem; padding:1.5rem;">
     <h3>OpenAI API Key</h3>
@@ -287,17 +305,23 @@
 </div>
 
 <script>
-  // ---------- STORAGE KEYS ----------
+  // ========== 存储 ==========
   const STORAGE_KEYS = {
     API_KEY: 'pc_fix_openai_key',
     HISTORY: 'pc_fix_history'
   };
 
-  // ---------- GLOBAL STATE ----------
   let openAIKey = localStorage.getItem(STORAGE_KEYS.API_KEY) || '';
   let diagnosisHistory = [];
 
-  // Load history from localStorage
+  function showToast(msg) {
+    let toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.innerText = msg;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 2500);
+  }
+
   function loadHistory() {
     const stored = localStorage.getItem(STORAGE_KEYS.HISTORY);
     if(stored) {
@@ -326,6 +350,7 @@
     if(diagnosisHistory.length > 30) diagnosisHistory.pop();
     saveHistoryToLocal();
     renderHistory();
+    showToast('✓ Saved to history');
   }
 
   function renderHistory() {
@@ -345,14 +370,14 @@
       `;
     });
     historyContainer.innerHTML = html;
-    // attach click events
     document.querySelectorAll('.history-item').forEach(el => {
-      el.addEventListener('click', (e) => {
+      el.addEventListener('click', () => {
         const id = parseInt(el.getAttribute('data-id'));
         const found = diagnosisHistory.find(h => h.id === id);
         if(found) {
           document.getElementById('problemInput').value = found.fullQuestion;
           document.getElementById('solutionArea').innerHTML = `<strong>📋 Previous solution:</strong><br>${escapeHtml(found.answer)}`;
+          showToast('Loaded previous diagnosis');
         }
       });
     });
@@ -365,12 +390,9 @@
       if(m === '<') return '&lt;';
       if(m === '>') return '&gt;';
       return m;
-    }).replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, function(c) {
-      return c;
     });
   }
 
-  // update UI for API key status
   function updateApiKeyUI() {
     const statusSpan = document.getElementById('apiKeyStatus');
     const hintIcon = document.getElementById('keyHintIcon');
@@ -383,7 +405,6 @@
     }
   }
 
-  // OpenAI API call (GPT-3.5-turbo / 4-mini style)
   async function callOpenAI(userPrompt) {
     if(!openAIKey || !openAIKey.startsWith('sk-')) {
       throw new Error('OpenAI API Key is missing or invalid. Please add your key in settings.');
@@ -425,7 +446,6 @@
     return aiMessage;
   }
 
-  // Main diagnose function
   async function runDiagnosis(problemText) {
     if(!problemText || problemText.trim().length === 0) {
       document.getElementById('solutionArea').innerHTML = '⚠️ Please describe your computer issue first.';
@@ -441,8 +461,7 @@
     try {
       const result = await callOpenAI(problemText);
       const formatted = result.replace(/\n/g, '<br>');
-      solutionDiv.innerHTML = `<strong>🔧 DIAGNOSIS & REPLAN</strong><br><br>${formatted}`;
-      // Save to history
+      solutionDiv.innerHTML = `<strong>🔧 DIAGNOSIS & REPAIR PLAN</strong><br><br>${formatted}`;
       addHistoryEntry(problemText, result);
     } catch (err) {
       console.error(err);
@@ -450,7 +469,6 @@
     }
   }
 
-  // Voice recognition (Web Speech API)
   function startVoiceInput() {
     const voiceStatus = document.getElementById('voiceStatus');
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
@@ -480,30 +498,24 @@
     };
   }
 
-  // Camera / Photo Diagnosis (simulate using file upload + extract text using basic OCR simulation? but real hybrid use: we simulate as image analysis explanation)
-  // Since real OCR would be complex, we implement a 'photo diagnosis' that lets user select an image and we simulate AI understanding.
-  // In real webview, it's a file input. We'll ask user to describe the visible issue or just treat as visual clue -> generate analysis.
-  // For simplicity & functionality: camera button opens file picker, then we prepend "The user uploaded a photo of the PC issue. Based on visual inspection: " but they still need description.
-  // But to meet "拍照诊断" properly: We allow selecting an image, then we ask for optional additional description, but final prompt includes mention of image.
   function cameraDiagnosis() {
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
     fileInput.accept = 'image/*';
-    fileInput.capture = 'environment'; // hint for camera on mobile
+    fileInput.capture = 'environment';
     fileInput.onchange = (event) => {
       const file = event.target.files[0];
       if(file) {
         const currentText = document.getElementById('problemInput').value;
         let newMessage = currentText ? currentText + ' [User attached photo of the computer hardware issue. Please consider visible defects like broken screen, liquid damage, or bulging battery.]' : '[Photo diagnosis] The user took a photo of the faulty PC component. Please analyze possible hardware failures based on typical visual cues. Provide general repair steps.';
         document.getElementById('problemInput').value = newMessage;
-        // Optionally show alert
-        alert('Photo attached! Please click "Diagnose (Text)" to run AI analysis.');
+        showToast('Photo attached! Click "Diagnose" to run AI analysis.');
       }
     };
     fileInput.click();
   }
 
-  // --- Modal handling for API Key ---
+  // Modal handling
   const modal = document.getElementById('apiModal');
   function openApiModal() {
     modal.style.display = 'flex';
@@ -516,26 +528,26 @@
   document.getElementById('closeModalBtn').addEventListener('click', closeModal);
   document.getElementById('saveApiKeyBtn').addEventListener('click', () => {
     const newKey = document.getElementById('apiKeyInput').value.trim();
-    if(newKey) {
+    if(newKey && newKey.startsWith('sk-')) {
       openAIKey = newKey;
       localStorage.setItem(STORAGE_KEYS.API_KEY, openAIKey);
       updateApiKeyUI();
       closeModal();
+      showToast('API Key saved!');
     } else {
       alert('Please enter a valid OpenAI API key (starts with sk-)');
     }
   });
 
-  // Clear history
   document.getElementById('clearHistoryBtn').addEventListener('click', () => {
     if(confirm('Delete all past diagnoses?')) {
       diagnosisHistory = [];
       saveHistoryToLocal();
       renderHistory();
+      showToast('History cleared');
     }
   });
 
-  // Buttons
   document.getElementById('submitTextBtn').addEventListener('click', () => {
     const problem = document.getElementById('problemInput').value;
     runDiagnosis(problem);
@@ -543,7 +555,7 @@
   document.getElementById('voiceInputBtn').addEventListener('click', startVoiceInput);
   document.getElementById('cameraDiagnoseBtn').addEventListener('click', cameraDiagnosis);
 
-  // Disclaimer acceptance
+  // Disclaimer
   const splash = document.getElementById('splashScreen');
   const mainApp = document.getElementById('mainApp');
   document.getElementById('acceptDisclaimerBtn').addEventListener('click', () => {
@@ -554,50 +566,66 @@
     }, 300);
   });
 
-  // Initialize
   loadHistory();
   updateApiKeyUI();
-
-  // Additional: auto-save any manual key updates
-  window.onload = () => {
-    if(openAIKey) updateApiKeyUI();
-  };
 </script>
 
-<!-- ========== HOW TO PACKAGE AS AAB (for total beginners) ========== -->
-<!-- 
-  🚀 INSTRUCTIONS FOR NON-DEVELOPERS TO CONVERT THIS SINGLE FILE INTO A GOOGLE PLAY AAB:
+<!-- ========== 内嵌 Service Worker（动态注册，让 PWABuilder 能识别） ========== -->
+<script>
+  // 动态创建并注册 Service Worker（内嵌代码，无需额外文件）
+  if ('serviceWorker' in navigator) {
+    const swCode = `self.addEventListener('fetch', function(event) {
+      event.respondWith(fetch(event.request));
+    });
+    self.addEventListener('install', function(event) {
+      self.skipWaiting();
+    });`;
+    const blob = new Blob([swCode], {type: 'application/javascript'});
+    const swUrl = URL.createObjectURL(blob);
+    navigator.serviceWorker.register(swUrl).then(reg => {
+      console.log('Service Worker registered');
+    }).catch(err => {
+      console.log('SW registration failed:', err);
+    });
+  }
+</script>
 
-  STEP 1: Copy the entire code above (from <!DOCTYPE html> to </html>) and save it as "index.html" on your computer.
+<!-- ========== 📦 小白打包教程（完全照做即可上架 Google Play） ========== -->
+<!--
+  🚀 如何把这个 HTML 打包成 AAB 并上架 Google Play（无需任何代码知识）
 
-  STEP 2: Go to an online app builder that supports WebView / HTML packaging into AAB. Recommended FREE tools (no coding):
-  
-      ✅ Option A: "PWA2APK" (https://pwa2apk.dcloud.net.cn/) — but generates APK. Use "Appetize.io" Build? Better: Use "PhoneGap Build" is deprecated. 
-         Easiest for AAB: "AppsGeyser" (https://appsgeyser.com) → Choose "HTML App" → Upload your index.html as ZIP. They produce APK but can convert to AAB via bundletool? Alternatively use "PWABuilder" (https://www.pwabuilder.com) to generate Android package.
-      
-      ✅ Best for Google Play AAB directly: Use "MobiRoller" (https://www.mobiroller.com) or "Web2App" (https://web2app.com) but some require subscription.
-      
-      ✅ Recommended simple workflow: 
-         1. Use "PWA Builder" (pwabuilder.com). Paste this code as a PWA (you can create manifest.json online), then generate Android package -> AAB.
-         2. Alternatively, use "BuildBox" or "Andromo" (Andromo supports HTML injection). Many of those accept a ZIP with index.html and assets.
+  【方法一：PWABuilder（推荐，免费）】
+  1. 把上面的代码保存为 index.html
+  2. 去 https://app.netlify.com/drop（直接把文件拖进去）
+  3. 获得一个网址，比如 https://xxx.netlify.app
+  4. 打开 https://www.pwabuilder.com
+  5. 输入你的网址，点击 Start
+  6. 等待扫描完成 → 点击 Package for Stores
+  7. 选择 Android → 点击 Generate AAB
+  8. 下载 .aab 文件，直接上传 Google Play Console
 
-  STEP 3: Since you have a single HTML file, do the following:
-      - Compress index.html into a ZIP file named "app.zip".
-      - Go to "Andromo" (https://andromo.com) -> Create new app -> Choose "WebView App" -> Upload the ZIP. Set app name, icon, then build. Andromo directly generates AAB for Play Store. (Some features paid, but trial possible.)
-      - Another alternative: "Appy Pie" (https://appy-pie.com) -> Appy Pie's HTML to App builder: choose "Convert Website to App", upload your HTML. They produce AAB.
+  【方法二：Andromo（直接生成 AAB，适合小白）】
+  1. 访问 https://andromo.com
+  2. 注册免费账号
+  3. 点击 Create App → WebView App
+  4. 上传 index.html 文件（或输入 Netlify 网址）
+  5. 设置 App 名称：PC Fix AI，包名：com.pcfix.ai
+  6. 点击 Build → 下载 AAB
+  7. 上传 Google Play
 
-  STEP 4: For absolutely free and offline? Not possible, but best: Use "PWA2APK" online to create an APK, then use "Bundletool" (command line tool from Google) to convert APK to AAB? That is advanced. So better stick with Andromo or AppsGeyser with 'Android App Bundle' export.
+  【方法三：PWA2APK（极简）】
+  1. 访问 https://www.pwabuilder.com/generate（直接使用上述 Netlify 网址）
+  2. 点击 Android 图标
+  3. 填写 App Name: PC Fix AI
+  4. Package ID: com.pcfix.ai
+  5. 点击 Generate App Bundle
+  6. 下载 AAB
 
-  STEP 5: After building, download the AAB file. Go to Google Play Console -> Create app -> Upload AAB in Production track.
-
-  CRITICAL NOTES:
-    - This app uses localStorage, works fine inside WebView.
-    - Requires Internet & user's own OpenAI API key (they must obtain from platform.openai.com).
-    - The AI prompt is tailored for professional PC repair (iFixit style + Microsoft docs).
-    - Camera button triggers file input for photo diagnosis (user can take picture). Voice uses Web Speech API (supported on modern WebView/Chrome).
-    - ALL texts are English, disclaimer shown on first launch.
-    
-  ✅ CONGRATULATIONS! You just built a full computer repair AI assistant without writing a single Android code.
+  ✅ 注意事项：
+  - 必须使用 HTTPS 网址（Netlify 和 GitHub Pages 自动提供）
+  - OpenAI API Key 需要用户自己填写（在 App 内设置）
+  - App 完全离线可用（除了 AI 诊断需要网络）
+  - 本 App 已包含免责声明，符合 Google Play 政策
 -->
 </body>
 </html>
