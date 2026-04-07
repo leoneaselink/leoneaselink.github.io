@@ -1,0 +1,13 @@
+{
+  "background_color": "#ffffff",
+  "dir": "ltr",
+  "display": "standalone",
+  "name": "PC Repair AI Pro",
+  "orientation": "any",
+  "scope": "/",
+  "short_name": "PC Repair AI",
+  "start_url": "/",
+  "theme_color": "#000000",
+  "id": "com.pcrepair.aipro",
+  "description": "PC Repair AI Pro - Your professional computer repair assistant"
+}
